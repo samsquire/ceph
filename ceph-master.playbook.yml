@@ -1,0 +1,8 @@
+- hosts: storage01
+  become: true
+  roles:
+  - install-ceph
+  - ceph-master
+  vars_files:
+  - "group_vars/local/ansible_vault.yml"
+  

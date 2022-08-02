@@ -1,0 +1,90 @@
+- name: create monitor data folder
+  file:
+   path: /var/lib/ceph/mon/sam-storage01
+   state: directory
+
+- name: create monitor data folder
+  file:
+   path: /var/lib/ceph/mon/sam-admin
+   state: directory
+
+- name: set admin directory permissions
+  file:
+    path: /var/lib/ceph/mon/sam-admin
+    owner: ceph
+    group: ceph
+
+
+- name: create /etc/ceph/ceph.client.admin.keyring
+  copy:
+    content: "{{ client_admin }}"
+    dest: /etc/ceph/ceph.client.admin.keyring
+
+- name: create /var/lib/ceph/bootstrap-osd/
+  file:
+    path: /var/lib/ceph/bootstrap-osd/
+    state: directory
+    
+- name: create /var/lib/ceph/bootstrap-osd/ceph.keyring
+  copy:
+    content: "{{ boostrap_osd }}"
+    dest: /var/lib/ceph/bootstrap-osd/ceph.keyring
+
+- name: change /etc/ceph/ceph.client.admin.keyring owner
+  file:
+    path: /etc/ceph/ceph.client.admin.keyring
+    owner: ceph
+    group: ceph
+
+
+- name: change /var/lib/ceph/bootstrap-osd/ceph.keyring owner
+  file:
+    path: /var/lib/ceph/bootstrap-osd/ceph.keyring
+    owner: ceph
+    group: ceph
+ 
+- name: install monmap
+  template:
+    src: monmap
+    dest: /etc/ceph/monmap
+ 
+- name: create /etc/ceph/mon.keyring
+  copy:
+    content: "{{ mon }}"
+    dest: /etc/ceph/mon.keyring
+
+- name: change /etc/ceph/mon.keyring owner
+  file:
+    path: /etc/ceph/mon.keyring
+    owner: ceph
+    group: ceph
+
+- name: set monitor directory permissions
+  file:
+   path: /var/lib/ceph
+   owner: ceph
+   group: ceph
+   mode: '0755'
+   recurse: yes
+
+- name: set ceph lock permissions
+  file:
+   path: /var/run/ceph
+   owner: ceph
+   group: ceph
+   mode: '0755'
+   recurse: yes
+
+- name: setup monitor
+  shell: sudo -u ceph ceph-mon --cluster sam --mkfs -i storage01 --monmap /etc/ceph/monmap --keyring /etc/ceph/mon.keyring
+
+- name: install service
+  template:
+   src: ceph-mon.unit
+   dest: /etc/systemd/system/ceph-mon.service
+
+- name: enable mon service
+  ansible.builtin.service:
+    name: ceph-mon
+    enabled: yes
+    state: started

@@ -1,0 +1,32 @@
+- name: Download cephadm
+  get_url:
+    url: https://github.com/ceph/ceph/raw/pacific/src/cephadm/cephadm
+    dest: /usr/local/bin/
+    mode: '0740'
+
+
+- name: Set cephadm repository
+  shell: cephadm add-repo --release pacific
+
+- name: install ceph common
+  shell: cephadm install ceph-common
+  
+- name: install ceph base
+  shell: cephadm install ceph-base
+ 
+- name: install ceph mon
+  shell: cephadm install ceph-mon
+
+- name: install ceph osd
+  shell: cephadm install ceph-osd
+
+- name: create cepth configuration dir
+  file:
+    state: directory
+    path: /etc/cepth
+
+- name: configure ceph
+  template:
+    src: ceph.conf
+    dest: /etc/ceph/ceph.conf
+
