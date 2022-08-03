@@ -1,0 +1,12 @@
+[Unit]
+Description=ceph-mds
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ceph-mds -f -c /etc/ceph/ceph.conf --id mds-0
+Restart=on-failure
+User=ceph
+
+[Install]
+WantedBy=multi-user.target

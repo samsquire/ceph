@@ -1,0 +1,103 @@
+- name: Check that the volume has been set up
+  stat:
+    path: /etc/ceph/sdc.fsid
+  register: stat_result
+
+- name: generate fsid
+  shell: sudo uuidgen > /etc/ceph/sdc.fsid
+  when: not stat_result.stat.exists
+ 
+- name: create /var/lib/ceph/bootstrap-osd/
+  file:
+    path: /var/lib/ceph/bootstrap-osd/
+    state: directory
+    
+- name: create /etc/ceph/ceph.keyring
+  copy:
+    content: "{{ boostrap_osd }}"
+    dest: /etc/ceph/ceph.keyring
+    
+- name: create  /var/lib/ceph/bootstrap-osd/ceph.keyring
+  copy:
+    content: "{{ boostrap_osd }}"
+    dest:  /var/lib/ceph/bootstrap-osd/ceph.keyring
+
+- name: create client-admin directory
+  file:
+    path: /var/lib/ceph/osd/ceph-admin/
+    state: directory
+
+- name: create /var/lib/ceph/osd/ceph-admin/keyring
+  copy:
+    content: "{{ client_admin }}"
+    dest: /var/lib/ceph/osd/ceph-admin/keyring
+    owner: ceph
+    group: ceph
+
+- name: change /var/lib/ceph/osd/ceph-admin/keyring owner
+  file:
+    path: /var/lib/ceph/osd/ceph-admin/keyring
+    owner: ceph
+    group: ceph
+
+- name: create /etc/ceph/ceph.client.admin.keyring
+  copy:
+    content: "{{ client_admin }}"
+    dest: /etc/ceph/ceph.client.admin.keyring
+
+- name: change /etc/ceph/ceph.client.admin.keyring owner
+  file:
+    path: /etc/ceph/ceph.client.admin.keyring
+    owner: ceph
+    group: ceph
+ 
+- name: Prepare the osd volume
+  shell: "sudo ceph-volume lvm prepare --bluestore --data /dev/sdc --osd-fsid {{ lookup('file', '/etc/ceph/sdc.fsid') }}"
+  when: not stat_result.stat.exists
+  ignore_errors: True
+
+- name: shell get the osd id
+  shell: sudo ceph-volume lvm list | grep "osd fsid" -C 2 | grep "osd id" | awk '{print $3}' > /etc/ceph/sdc.osdid
+
+- name: Activate the osd volume
+  shell: "sudo ceph-volume lvm activate --bluestore {{ lookup('file', '/etc/ceph/sdc.osdid') }} {{ lookup('file', '/etc/ceph/sdc.fsid') }}"
+  when: not stat_result.stat.exists
+  register: prepare_success
+
+- name: Create the file, if it doesnt exist already
+  file:
+    path: /etc/ceph/sdc
+    state: touch
+  when: not stat_result.stat.exists and prepare_success.rc == 0
+  
+
+- name: install service
+  template:
+   src: ceph-osd.unit
+   dest: /etc/systemd/system/ceph-osd.service
+
+- name: enable ceph-osd service
+  ansible.builtin.service:
+    name: ceph-osd
+    enabled: yes
+    state: started
+ 
+- name: create mountpoint
+  file:
+    path: /srv/ceph
+    state: directory
+
+- name: get storage01 server ip
+  shell: dig +short storage01 > /etc/ceph/mon_server
+
+- name: create client secret
+  shell: ceph auth get-key client.admin > /root/client.admin > /etc/ceph/client.admin
+
+- name: Mount cephfs
+  ansible.posix.mount:
+    path: /srv/ceph
+    fstype: ceph
+    src: "{{ lookup('file', '/etc/ceph/mon_server') }}:6789:/"
+    opts: "noatime,_netdev,name=admin,secretfile=/etc/ceph/client.admin,fs=cephfs"
+    state: mounted
+ 

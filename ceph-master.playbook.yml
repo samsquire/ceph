@@ -3,6 +3,7 @@
   roles:
   - install-ceph
   - ceph-master
+  - ceph-storage
   vars_files:
   - "group_vars/local/ansible_vault.yml"
   

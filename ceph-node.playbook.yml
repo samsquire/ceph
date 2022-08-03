@@ -2,6 +2,7 @@
   become: true
   roles:
   - install-ceph
+  - ceph-storage
   vars_files:
   - "group_vars/local/ansible_vault.yml"
   

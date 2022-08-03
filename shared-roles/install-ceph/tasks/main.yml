@@ -19,6 +19,9 @@
 
 - name: install ceph osd
   shell: cephadm install ceph-osd
+  
+- name: install ceph mgr
+  shell: cephadm install ceph-mgr
 
 - name: create cepth configuration dir
   file:
@@ -29,4 +32,8 @@
   template:
     src: ceph.conf
     dest: /etc/ceph/ceph.conf
+  notify:
+  - restart ceph-mon
+  - restart ceph-mgr
+  - restart ceph-osd
 

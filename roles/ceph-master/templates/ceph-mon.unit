@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 ExecStart=/usr/bin/ceph-mon -f -c /etc/ceph/ceph.conf -i storage01 --cluster sam --keyring /etc/ceph/mon.keyring --monmap /etc/ceph/monmap
 Restart=on-failure
-User=ceph
+User=root
 
 [Install]
 WantedBy=multi-user.target

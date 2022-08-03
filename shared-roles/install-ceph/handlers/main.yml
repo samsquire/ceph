@@ -1,0 +1,17 @@
+- name: restart ceph-osd
+  service:
+    name: ceph-osd
+    enabled: yes
+    state: restarted
+
+- name: restart ceph-mon
+  service:
+    name: ceph-mon
+    enabled: yes
+    state: restarted
+
+- name: restart ceph-mgr
+  service:
+    name: ceph-mgr
+    enabled: yes
+    state: restarted

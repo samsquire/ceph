@@ -1,0 +1,12 @@
+[Unit]
+Description=ceph-osd
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ceph-osd -f -c /etc/ceph/ceph.conf
+Restart=on-failure
+User=ceph
+
+[Install]
+WantedBy=multi-user.target

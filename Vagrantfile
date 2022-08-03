@@ -84,6 +84,17 @@ Vagrant.configure("2") do |config|
 
  
   config.vm.define "storage01" do |s1|
+	storage = "storage01.vdi"
+
+	s1.persistent_storage.enabled = true
+	s1.persistent_storage.location = "./storage01.vdi"
+	s1.persistent_storage.size = 5000
+	s1.persistent_storage.partition = false
+	s1.persistent_storage.volgroupname = 'storage01'
+	s1.persistent_storage.diskdevice = '/dev/sdc'
+	
+	s1.persistent_storage.use_lvm = false
+
     s1.vm.box = "ubuntu/focal64"
 	s1.vm.network "private_network", ip: "192.168.50.4"
     s1.vm.provision "ansible_local" do |ansible|
@@ -92,6 +103,13 @@ Vagrant.configure("2") do |config|
     end
   end
   config.vm.define "storage02" do |s2|
+  	s2.persistent_storage.enabled = true
+	s2.persistent_storage.location = "./storage02.vdi"
+	s2.persistent_storage.size = 5000
+	s2.persistent_storage.partition = false
+	s2.persistent_storage.volgroupname = 'storage02'
+	s2.persistent_storage.diskdevice = '/dev/sdc'
+	s2.persistent_storage.use_lvm = false
     s2.vm.box = "ubuntu/focal64"
 	s2.vm.network "private_network", ip: "192.168.50.5"
     s2.vm.provision "ansible_local" do |ansible|
@@ -100,6 +118,13 @@ Vagrant.configure("2") do |config|
     end
   end
   config.vm.define "storage03" do |s3|
+  	s3.persistent_storage.enabled = true
+	s3.persistent_storage.location = "./storage03.vdi"
+	s3.persistent_storage.size = 5000
+	s3.persistent_storage.partition = false
+	s3.persistent_storage.volgroupname = 'storage01'
+	s3.persistent_storage.diskdevice = '/dev/sdc'
+	s3.persistent_storage.use_lvm = false
     s3.vm.box = "ubuntu/focal64"
 	s3.vm.network "private_network", ip: "192.168.50.6"
     s3.vm.provision "ansible_local" do |ansible|

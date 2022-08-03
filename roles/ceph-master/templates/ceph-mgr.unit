@@ -1,0 +1,12 @@
+[Unit]
+Description=ceph-mgr
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ceph-mgr -f -c /etc/ceph/ceph.conf -i mgr-0 --cluster sam
+Restart=on-failure
+User=ceph
+
+[Install]
+WantedBy=multi-user.target

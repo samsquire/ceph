@@ -19,16 +19,11 @@
   copy:
     content: "{{ client_admin }}"
     dest: /etc/ceph/ceph.client.admin.keyring
-
-- name: create /var/lib/ceph/bootstrap-osd/
-  file:
-    path: /var/lib/ceph/bootstrap-osd/
-    state: directory
     
-- name: create /var/lib/ceph/bootstrap-osd/ceph.keyring
+- name: create /etc/ceph/ceph.keyring
   copy:
     content: "{{ boostrap_osd }}"
-    dest: /var/lib/ceph/bootstrap-osd/ceph.keyring
+    dest: /etc/ceph/ceph.keyring
 
 - name: change /etc/ceph/ceph.client.admin.keyring owner
   file:
@@ -36,6 +31,10 @@
     owner: ceph
     group: ceph
 
+- name: create /var/lib/ceph/bootstrap-osd/ceph.keyring
+  copy:
+    content: "{{ boostrap_osd }}"
+    dest: /var/lib/ceph/bootstrap-osd/ceph.keyring
 
 - name: change /var/lib/ceph/bootstrap-osd/ceph.keyring owner
   file:
@@ -43,10 +42,8 @@
     owner: ceph
     group: ceph
  
-- name: install monmap
-  template:
-    src: monmap
-    dest: /etc/ceph/monmap
+
+
  
 - name: create /etc/ceph/mon.keyring
   copy:
@@ -75,16 +72,156 @@
    mode: '0755'
    recurse: yes
 
+- name: Check monmap created
+  stat:
+    path: /etc/ceph/monmap
+  register: monmap_result
+
+- name: shell create monmap
+  shell: sudo monmaptool --create --add storage01 $(dig +short storage01) --fsid 4c10ad7a-3ecb-4959-98ea-a66d9db49500 /etc/ceph/monmap
+  when: not monmap_result.stat.exists
+
+- name: correct monmap permissions
+  file:
+    path: /etc/ceph/monmap
+    owner: ceph
+    group: ceph
+
 - name: setup monitor
-  shell: sudo -u ceph ceph-mon --cluster sam --mkfs -i storage01 --monmap /etc/ceph/monmap --keyring /etc/ceph/mon.keyring
+  shell: ceph-mon --cluster sam --mkfs -i storage01 --monmap /etc/ceph/monmap --keyring /etc/ceph/mon.keyring
+  ignore_errors: True
 
 - name: install service
   template:
    src: ceph-mon.unit
    dest: /etc/systemd/system/ceph-mon.service
 
+
 - name: enable mon service
   ansible.builtin.service:
     name: ceph-mon
     enabled: yes
+    state: restarted
+
+- name: enable msgr2
+  shell: ceph mon enable-msgr2
+
+- name: Check if pools created
+  stat:
+    path: /etc/ceph/pools_created
+  register: pools_created
+
+- name: create the data and metadata pools
+  shell: ceph osd pool create cephfs_data; ceph osd pool create cephfs_metadata
+  when: not pools_created.stat.exists
+  
+ 
+- name: Create pools_created
+  file:
+    path: /etc/ceph/pools_created
+    state: touch
+
+- name: Check if fs created
+  stat:
+    path: /etc/ceph/fs_created
+  register: fs_created
+
+- name: create file system
+  shell: ceph fs new cephfs cephfs_metadata cephfs_data
+  when: not fs_created.stat.exists
+ 
+- name: Create fs_created
+  file:
+    path: /etc/ceph/fs_created
+    state: touch
+
+- name: Check if mds key created
+  stat:
+    path: /etc/ceph/mds_key_created
+  register: mds_key_created
+
+- name: create mds directory
+  file:
+    path: /var/lib/ceph/mds/ceph-mds-0
+    state: directory
+    owner: ceph
+    group: ceph
+  when: not mds_key_created.stat.exists
+ 
+- name: create mds key
+  shell: sudo ceph auth get-or-create mds.mds-0 mon 'profile mds' mgr 'profile mds' mds 'allow *' osd 'allow *' > /var/lib/ceph/mds/ceph-mds-0/keyring
+  when: not mds_key_created.stat.exists
+
+- name: install mds service
+  template:
+   src: ceph-mds.unit
+   dest: /etc/systemd/system/ceph-mds.service
+
+
+- name: mds key created
+  file:
+    path: /etc/ceph/mds_key_created
+    state: touch
+ 
+
+
+
+
+
+
+
+
+- name: Check if mgr key created
+  stat:
+    path: /etc/ceph/mgr_key_created
+  register: mgr_key_created
+
+- name: create mgr directory
+  file:
+    path: /var/lib/ceph/mgr/sam-mgr-0
+    state: directory
+    owner: ceph
+    group: ceph
+  when: not mgr_key_created.stat.exists
+
+ 
+- name: create mgr key
+  shell: ceph auth get-or-create mgr.mgr-0 mon 'allow profile mgr' osd 'allow *' mds 'allow *' >  /var/lib/ceph/mgr/sam-mgr-0/keyring
+  when: not mgr_key_created.stat.exists
+
+- name: install mgr service
+  template:
+   src: ceph-mgr.unit
+   dest: /etc/systemd/system/ceph-mgr.service
+   
+- name: enable mgr service
+  ansible.builtin.service:
+    name: ceph-mgr
+    enabled: yes
     state: started
+
+
+- name: mgr key created
+  file:
+    path: /etc/ceph/mgr_key_created
+    state: touch
+ 
+
+- name: enable autoscaling cephfs_data
+  shell: sudo ceph osd pool set cephfs_data pg_autoscale_mode on
+  
+- name: enable autoscaling cephfs_metadata
+  shell: sudo ceph osd pool set cephfs_metadata pg_autoscale_mode on
+
+- name: enable mds service
+  ansible.builtin.service:
+    name: ceph-mds
+    enabled: yes
+    state: started
+
+- name: set pool replicas to 3
+  shell: ceph osd pool set cephfs_data size 3 ; ceph osd pool set cephfs_metadata size 3
+  ignore_errors: True
+
+- name: set pg_num
+  shell: sudo ceph osd pool set cephfs_data pg_num 1 ; ceph osd pool set cephfs_metadata pg_num 1
