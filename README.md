@@ -1,5 +1,6 @@
 # ceph
-incomplete beginnings of ceph in vagrant
+
+working 3 node cluster with 1 osd per node with persistent volumes for storage in ceph
 
 # install
 
